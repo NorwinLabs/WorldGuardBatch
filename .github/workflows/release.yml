@@ -1,0 +1,54 @@
+name: Build and Release
+
+on:
+  # Runs automatically when you publish a GitHub Release (e.g. tag v1.2.0)
+  release:
+    types: [published]
+  # Also verify every push / PR to the default branch
+  push:
+    branches: [main, master]
+  pull_request:
+  # Allow manual runs from the Actions tab
+  workflow_dispatch:
+
+permissions:
+  contents: write # needed to attach the jar to the release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # On a release, stamp the jar with the tag version (v1.2.0 -> 1.2.0)
+      - name: Set version from release tag
+        if: github.event_name == 'release'
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          mvn -B -q versions:set -DnewVersion="$VERSION" -DgenerateBackupPoms=false
+
+      - name: Build
+        run: mvn -B clean package
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WorldGuardBatch
+          path: target/WorldGuardBatch-*.jar
+          if-no-files-found: error
+
+      - name: Attach jar to GitHub Release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          JAR=$(ls target/WorldGuardBatch-*.jar | grep -v -- '-original' | head -n1)
+          gh release upload "$GITHUB_REF_NAME" "$JAR" --clobber
