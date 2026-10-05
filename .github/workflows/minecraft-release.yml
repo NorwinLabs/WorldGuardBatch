@@ -1,0 +1,71 @@
+name: Build for new Minecraft release
+
+on:
+  schedule:
+    - cron: '0 */6 * * *' # check Mojang's version manifest every 6 hours
+  workflow_dispatch:
+    inputs:
+      minecraft_version:
+        description: 'Minecraft version to build for (default: latest release)'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  check-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve Minecraft version
+        id: mc
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.minecraft_version }}
+        run: |
+          VERSION="$INPUT_VERSION"
+          if [ -z "$VERSION" ]; then
+            VERSION=$(curl -fsSL https://piston-meta.mojang.com/mc/game/version_manifest_v2.json | jq -r '.latest.release')
+          fi
+          [ -n "$VERSION" ] && [ "$VERSION" != "null" ] || { echo "Could not determine version"; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=mc-$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether this version was already built
+        id: exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${{ steps.mc.outputs.tag }}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release ${{ steps.mc.outputs.tag }} already exists, nothing to do."
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.exists.outputs.found == 'false'
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        if: steps.exists.outputs.found == 'false'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # Spigot API snapshots are named <mc version>-R0.1-SNAPSHOT (e.g. 1.21.4-R0.1-SNAPSHOT)
+      - name: Build against Spigot API ${{ steps.mc.outputs.version }}
+        if: steps.exists.outputs.found == 'false'
+        run: mvn -B clean package -Dspigot.version=${{ steps.mc.outputs.version }}-R0.1-SNAPSHOT
+
+      - name: Create release
+        if: steps.exists.outputs.found == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          JAR=$(ls target/WorldGuardBatch-*.jar | grep -v -- '-original' | head -n1)
+          gh release create "${{ steps.mc.outputs.tag }}" "$JAR" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "WorldGuardBatch for Minecraft ${{ steps.mc.outputs.version }}" \
+            --notes "Automated build against the Spigot API for Minecraft ${{ steps.mc.outputs.version }}."

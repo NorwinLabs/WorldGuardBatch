@@ -8,6 +8,10 @@
     <artifactId>WorldGuardBatch</artifactId>
     <version>1.0</version>
 
+    <properties>
+        <!-- Overridden by CI to build against newer Minecraft releases -->
+        <spigot.version>1.13.2-R0.1-SNAPSHOT</spigot.version>
+    </properties>
 
     <build>
         <plugins>
@@ -37,7 +41,7 @@
         <dependency>
             <groupId>org.spigotmc</groupId>
             <artifactId>spigot-api</artifactId>
-            <version>1.13.2-R0.1-SNAPSHOT</version>
+            <version>${spigot.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
