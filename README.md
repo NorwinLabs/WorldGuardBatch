@@ -178,3 +178,19 @@ Lists all regions with matching name.
 
 Lists all regions with matching name.  
 `/wgb list owner [name]`
+
+
+## Downloads and automatic builds
+Prebuilt jars are available on the [Releases](../../releases) page.
+
+A GitHub Actions workflow (`.github/workflows/minecraft-release.yml`) checks Mojang's version manifest every 6 hours.
+When a new Minecraft release appears and no release for it exists yet, it:
+
+1. Builds the plugin against the Spigot API for that Minecraft version (`<version>-R0.1-SNAPSHOT`).
+2. Publishes a GitHub release tagged `mc-<version>`, titled `WorldGuardBatch-<version>`, with the jar `WorldGuardBatch-<plugin version>-mc<version>.jar` attached.
+3. Marks it as the latest release if it is Mojang's newest version.
+
+If the build fails (for example because the Spigot API for that version is not published yet), nothing is released and the next scheduled run tries again.
+
+You can also trigger it manually from the Actions tab and optionally enter a specific Minecraft version.
+To build locally against another version, run `mvn clean package -Dspigot.version=<version>-R0.1-SNAPSHOT`.
