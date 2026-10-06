@@ -63,9 +63,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          MC="${{ steps.mc.outputs.version }}"
+          PLUGIN=$(mvn -B -q help:evaluate -Dexpression=project.version -DforceStdout)
           JAR=$(ls target/WorldGuardBatch-*.jar | grep -v -- '-original' | head -n1)
-          gh release create "${{ steps.mc.outputs.tag }}" "$JAR" \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
-            --title "WorldGuardBatch for Minecraft ${{ steps.mc.outputs.version }}" \
-            --notes "Automated build against the Spigot API for Minecraft ${{ steps.mc.outputs.version }}."
+          NAMED="target/WorldGuardBatch-${PLUGIN}-mc${MC}.jar"
+          cp "$JAR" "$NAMED"
+          # Only mark as "latest" when this is the newest Minecraft release (not a manual older build)
+          LATEST=$(curl -fsSL https://piston-meta.mojang.com/mc/game/version_manifest_v2.json | jq -r '.latest.release')
+          FLAG=""
+          [ "$MC" = "$LATEST" ] && FLAG="--latest"
+          gh release create "${{ steps.mc.outputs.tag }}" "$NAMED" $FLAG             --repo "$GITHUB_REPOSITORY"             --target "$GITHUB_SHA"             --title "WorldGuardBatch ${PLUGIN} for Minecraft ${MC}"             --notes "Automated build of the latest WorldGuardBatch (${PLUGIN}) against the Spigot API for Minecraft ${MC}."
