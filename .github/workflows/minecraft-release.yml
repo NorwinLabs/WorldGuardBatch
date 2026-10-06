@@ -72,4 +72,4 @@ jobs:
           LATEST=$(curl -fsSL https://piston-meta.mojang.com/mc/game/version_manifest_v2.json | jq -r '.latest.release')
           FLAG=""
           [ "$MC" = "$LATEST" ] && FLAG="--latest"
-          gh release create "${{ steps.mc.outputs.tag }}" "$NAMED" $FLAG             --repo "$GITHUB_REPOSITORY"             --target "$GITHUB_SHA"             --title "WorldGuardBatch ${PLUGIN} for Minecraft ${MC}"             --notes "Automated build of the latest WorldGuardBatch (${PLUGIN}) against the Spigot API for Minecraft ${MC}."
+          gh release create "${{ steps.mc.outputs.tag }}" "$NAMED" $FLAG             --repo "$GITHUB_REPOSITORY"             --target "$GITHUB_SHA"             --title "WorldGuardBatch-${MC}"             --notes "Automated build of the latest WorldGuardBatch (${PLUGIN}) against the Spigot API for Minecraft ${MC}."
